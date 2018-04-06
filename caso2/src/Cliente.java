@@ -3,11 +3,13 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 
 public class Cliente 
 {
 
-	//private final static String IP = ;
+	private final static String CERTIFICADO = "CERTCLNT";
 	private final static int PUERTO = 8080;  
 	
 	public static void main(String[] args) 
@@ -31,6 +33,12 @@ public class Cliente
 			{
 				System.out.print("Escriba el mensaje para enviar:");
 				fromUser = stdIn.readLine();
+				if(fromUser != null && fromUser.equals(CERTIFICADO))
+				{
+					escritor.print(CERTIFICADO);
+					java.security.cert.X509Certificate cert = certificado();
+				}
+				
 				escritor.println(fromUser);
 				if ((fromServer = lector.readLine()) != null) 
 				{
@@ -47,6 +55,12 @@ public class Cliente
 			System.out.println("Error " + e.getMessage());
 			System.exit(1);
 		}
+	}
+
+	private static X509Certificate certificado() 
+	{
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 }
