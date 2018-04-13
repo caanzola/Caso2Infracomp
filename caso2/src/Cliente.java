@@ -1,10 +1,15 @@
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
+import java.security.Security;
+import java.security.cert.*;
+
+import org.bouncycastle.cert.*;
+import org.bouncycastle.jce.provider.*;
+import org.bouncycastle.jcajce.*;
 
 public class Cliente 
 {
@@ -37,6 +42,10 @@ public class Cliente
 				{
 					escritor.print(CERTIFICADO);
 					java.security.cert.X509Certificate cert = certificado();
+					byte[] mybyte = cert.getEncoded();
+					socket.getOutputStream().write(mybyte);
+					socket.getOutputStream().flush();
+					
 				}
 				
 				escritor.println(fromUser);
@@ -59,8 +68,18 @@ public class Cliente
 
 	private static X509Certificate certificado() 
 	{
-		// TODO Auto-generated method stub
-		return null;
+		X509Certificate certificado = null;
+		try
+		{
+		Security.addProvider(new BouncyCastleProvider());
+		X509v3CertificateBuilder x = new 
+		System.out.println(certificado.getPublicKey());
+		}
+		catch (Exception e)
+		{
+			System.out.println("Error en generación de certificado");
+		}
+		return certificado;
 	}
 
 }
