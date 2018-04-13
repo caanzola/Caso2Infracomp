@@ -71,11 +71,10 @@ public class Cliente
 				fromUser = stdIn.readLine();
 				if(fromUser != null && fromUser.equals(CERTIFICADO))
 				{
-					escritor.print(CERTIFICADO);
+					escritor.println(CERTIFICADO);
 					java.security.cert.X509Certificate cert = certificado();
 					System.out.println("Certificado: "+cert);
 					byte[] mybyte = cert.getEncoded();
-					System.out.println("llega aca");
 					socket.getOutputStream().write(mybyte);
 					socket.getOutputStream().flush();
 					
@@ -106,6 +105,8 @@ public class Cliente
 		{
 
 			Security.addProvider(new BouncyCastleProvider());
+			
+			
 			// yesterday
 	        Date validityBeginDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000);
 	        // in 2 years
@@ -130,44 +131,14 @@ public class Cliente
 	        certGen.setSignatureAlgorithm("SHA256WithRSAEncryption");
 
 	        certificado = certGen.generate(keyPair.getPrivate(), "BC");
-
-			/**
-			// generate a key pair
-			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
-			keyPairGenerator.initialize(4096, new SecureRandom());
-			KeyPair keyPair = keyPairGenerator.generateKeyPair();
-			
-			Provider bcProvider = new BouncyCastleProvider();
-		    Security.addProvider(bcProvider);
-
-		    long now = System.currentTimeMillis();
-		    Date startDate = new Date(now);
-
-		    X500Name dnName = new X500Name("x500 name");
-		    BigInteger certSerialNumber = new BigInteger(Long.toString(now)); // <-- Using the current timestamp as the certificate serial number
-
-		    Calendar calendar = Calendar.getInstance();
-		    calendar.setTime(startDate);
-		    calendar.add(Calendar.YEAR, 1); // <-- 1 Yr validity
-
-		    Date endDate = calendar.getTime();
+	        
 		    
-		    String signatureAlgorithm = "SHA1WithRSA";
-		    ContentSigner contentSigner = new JcaContentSignerBuilder(signatureAlgorithm).build(keyPair.getPrivate());
-		    X509v3CertificateBuilder certBuilder = new JcaX509v3CertificateBuilder(dnName, certSerialNumber, startDate, endDate, dnName, keyPair.getPublic());
-		    
-		    // build BouncyCastle certificate
-		    ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
-		        .build(keyPair.getPrivate());
-		    X509CertificateHolder holder = certBuilder.build(signer);
-
-		    // convert to JRE certificate
-		    JcaX509CertificateConverter converter = new JcaX509CertificateConverter();
-		    converter.setProvider(new BouncyCastleProvider());
-		    certificado = converter.getCertificate(holder);
-		    **/
-			
 			/**
+			 KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
+		        keyPairGenerator.initialize(1024, new SecureRandom());
+
+		        java.security.KeyPair keyPair = keyPairGenerator.generateKeyPair();
+
 			// build a certificate generator
 			X509V3CertificateGenerator certGen = new X509V3CertificateGenerator();
 			X500Principal dnName = new X500Principal("cn=example");
