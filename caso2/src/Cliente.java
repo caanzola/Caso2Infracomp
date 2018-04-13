@@ -80,6 +80,8 @@ public class Cliente
 					
 				}
 				
+				//CONTINUAR
+				
 				escritor.println(fromUser);
 				if ((fromServer = lector.readLine()) != null) 
 				{
