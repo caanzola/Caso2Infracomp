@@ -53,7 +53,7 @@ public class Cliente
 	private final static String OK = "ESTADO:OK";
 	private final static String ERROR = "ESTADO:ERROR";
 	private final static int PUERTO = 8080;  
-	
+
 	public static void main(String[] args) 
 	{
 		Socket socket = null;
@@ -64,10 +64,10 @@ public class Cliente
 
 			socket = new Socket(InetAddress.getLocalHost().getHostAddress(), PUERTO);
 			escritor = new PrintWriter(socket.getOutputStream(), true);
-			
+
 			lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 			BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-			
+
 			String fromServer;
 			String fromUser;
 			boolean ejecutar = true;
@@ -91,8 +91,8 @@ public class Cliente
 				{
 					escritor.println(fromUser);
 				}
-				
-				
+
+
 				if ((fromServer = lector.readLine()) != null) 
 				{
 					System.out.println("Servidor: " + fromServer);
@@ -103,23 +103,35 @@ public class Cliente
 						if(fromServer != null && fromServer.equals(CERTIFICADO_RECIBIDO))
 						{
 							byte[] receivedData = new byte[1024];
-			                BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
-			                DataInputStream dis=new DataInputStream(socket.getInputStream());
-			                int in1;
-			                boolean recibioCertificado = false;
-			                while ((in1 = bis.read(receivedData)) != -1 && !recibioCertificado)
-			                {
-			                    recibioCertificado = true;
-			                    System.out.println("listo");
-			                	escritor.println(OK);
-			                }
-			                
-			                if(!recibioCertificado)
-			                {
-			                	System.out.println("error");
-			                	escritor.println(ERROR);
-			                }
+							BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
+							DataInputStream dis=new DataInputStream(socket.getInputStream());
+							int in1;
+							boolean recibioCertificado = false;
+							while ((in1 = bis.read(receivedData)) != -1 && !recibioCertificado)
+							{
+								recibioCertificado = true;
+								escritor.println(OK);
+							}
+
+							if(!recibioCertificado)
+							{
+								escritor.println(ERROR);
+							}
 						}
+						
+						// ACÁ SE ESTÁ QUEDANDO PARALIZADO
+						
+						System.out.println(fromServer);
+						fromServer = lector.readLine();
+						System.out.println(fromServer);
+						
+						/**fromServer = lector.readLine();
+						if(fromServer != null)
+						{
+							System.out.println("Servidor: " + fromServer);
+							String llaveSimetricaCifrada = fromServer.split(":")[1];
+							System.out.println("Llave " + llaveSimetricaCifrada);
+						}*/
 					}
 				}
 			}
@@ -140,61 +152,32 @@ public class Cliente
 		X509Certificate certificado = null;
 		try
 		{
-
 			Security.addProvider(new BouncyCastleProvider());
-			
-			
+
 			// yesterday
-	        Date validityBeginDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000);
-	        // in 2 years
-	        Date validityEndDate = new Date(System.currentTimeMillis() + 2 * 365 * 24 * 60 * 60 * 1000);
-
-	        // GENERATE THE PUBLIC/PRIVATE RSA KEY PAIR
-	        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
-	        keyPairGenerator.initialize(1024, new SecureRandom());
-
-	        java.security.KeyPair keyPair = keyPairGenerator.generateKeyPair();
-
-	        // GENERATE THE X509 CERTIFICATE
-	        X509V3CertificateGenerator certGen = new X509V3CertificateGenerator();
-	        X500Principal dnName = new X500Principal("CN=John Doe");
-
-	        certGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
-	        certGen.setSubjectDN(dnName);
-	        certGen.setIssuerDN(dnName); // use the same
-	        certGen.setNotBefore(validityBeginDate);
-	        certGen.setNotAfter(validityEndDate);
-	        certGen.setPublicKey(keyPair.getPublic());
-	        certGen.setSignatureAlgorithm("SHA256WithRSAEncryption");
-
-	        certificado = certGen.generate(keyPair.getPrivate(), "BC");
-	        
-		    
-			/**
-			 KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
-		        keyPairGenerator.initialize(1024, new SecureRandom());
-
-		        java.security.KeyPair keyPair = keyPairGenerator.generateKeyPair();
-
-			// build a certificate generator
-			X509V3CertificateGenerator certGen = new X509V3CertificateGenerator();
-			X500Principal dnName = new X500Principal("cn=example");
-
-			// add some options
-			certGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
-			certGen.setSubjectDN(new X509Name("dc=name"));
-			certGen.setIssuerDN(dnName); // use the same
-			// yesterday
-			certGen.setNotBefore(new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000));
+			Date validityBeginDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000);
 			// in 2 years
-			certGen.setNotAfter(new Date(System.currentTimeMillis() + 2 * 365 * 24 * 60 * 60 * 1000));
+			Date validityEndDate = new Date(System.currentTimeMillis() + 2 * 365 * 24 * 60 * 60 * 1000);
+
+			// GENERATE THE PUBLIC/PRIVATE RSA KEY PAIR
+			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
+			keyPairGenerator.initialize(1024, new SecureRandom());
+
+			java.security.KeyPair keyPair = keyPairGenerator.generateKeyPair();
+
+			// GENERATE THE X509 CERTIFICATE
+			X509V3CertificateGenerator certGen = new X509V3CertificateGenerator();
+			X500Principal dnName = new X500Principal("CN=John Doe");
+
+			certGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
+			certGen.setSubjectDN(dnName);
+			certGen.setIssuerDN(dnName); // use the same
+			certGen.setNotBefore(validityBeginDate);
+			certGen.setNotAfter(validityEndDate);
 			certGen.setPublicKey(keyPair.getPublic());
 			certGen.setSignatureAlgorithm("SHA256WithRSAEncryption");
-			certGen.addExtension(X509Extensions.ExtendedKeyUsage, true, new ExtendedKeyUsage(KeyPurposeId.id_kp_timeStamping));
 
-			// finally, sign the certificate with the private key of the same KeyPair
-			certificado = certGen.generate(keyPair.getPrivate(), "BC");*/
-			
+			certificado = certGen.generate(keyPair.getPrivate(), "BC");
 		}
 		catch (Exception e)
 		{
