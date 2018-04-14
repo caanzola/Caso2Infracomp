@@ -79,9 +79,7 @@ public class Cliente
 				if(fromUser != null && fromUser.equals(CERTIFICADO))
 				{
 					escritor.println(CERTIFICADO);
-					System.out.println("Esta enviando " + CERTIFICADO);
 					java.security.cert.X509Certificate cert = certificado();
-					//System.out.println("Certificado: "+cert);
 					byte[] mybyte = cert.getEncoded();
 					socket.getOutputStream().write(mybyte);
 					socket.getOutputStream().flush();
@@ -99,15 +97,15 @@ public class Cliente
 					if(envioCertificado)
 					{
 						fromServer = lector.readLine();
-						System.out.println("Servidor: " + fromServer);
+						System.out.println("Servidor: " +fromServer);
 						if(fromServer != null && fromServer.equals(CERTIFICADO_RECIBIDO))
 						{
-							byte[] receivedData = new byte[1024];
+							byte[] recievedData = new byte[1024];
 							BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
 							DataInputStream dis=new DataInputStream(socket.getInputStream());
-							int in1;
+							int inl = bis.read(recievedData);
 							boolean recibioCertificado = false;
-							while ((in1 = bis.read(receivedData)) != -1 && !recibioCertificado)
+							while ((inl) != -1 && !recibioCertificado)
 							{
 								recibioCertificado = true;
 								escritor.println(OK);
@@ -119,19 +117,14 @@ public class Cliente
 							}
 						}
 						
-						// ACÁ SE ESTÁ QUEDANDO PARALIZADO
-						
-						System.out.println(fromServer);
 						fromServer = lector.readLine();
-						System.out.println(fromServer);
 						
-						/**fromServer = lector.readLine();
 						if(fromServer != null)
 						{
 							System.out.println("Servidor: " + fromServer);
 							String llaveSimetricaCifrada = fromServer.split(":")[1];
-							System.out.println("Llave " + llaveSimetricaCifrada);
-						}*/
+						}
+						
 					}
 				}
 			}
