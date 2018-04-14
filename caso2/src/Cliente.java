@@ -1,4 +1,6 @@
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -24,6 +26,7 @@ import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
+import org.bouncycastle.bcpg.SymmetricKeyEncSessionPacket;
 import org.bouncycastle.cert.*;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
@@ -46,6 +49,9 @@ public class Cliente
 {
 
 	private final static String CERTIFICADO = "CERTCLNT";
+	private final static String CERTIFICADO_RECIBIDO = "CERTSRV";
+	private final static String OK = "ESTADO:OK";
+	private final static String ERROR = "ESTADO:ERROR";
 	private final static int PUERTO = 8080;  
 	
 	public static void main(String[] args) 
@@ -65,6 +71,7 @@ public class Cliente
 			String fromServer;
 			String fromUser;
 			boolean ejecutar = true;
+			boolean envioCertificado = false;
 			while (ejecutar) 
 			{
 				System.out.print("Escriba el mensaje para enviar:");
@@ -72,20 +79,48 @@ public class Cliente
 				if(fromUser != null && fromUser.equals(CERTIFICADO))
 				{
 					escritor.println(CERTIFICADO);
+					System.out.println("Esta enviando " + CERTIFICADO);
 					java.security.cert.X509Certificate cert = certificado();
-					System.out.println("Certificado: "+cert);
+					//System.out.println("Certificado: "+cert);
 					byte[] mybyte = cert.getEncoded();
 					socket.getOutputStream().write(mybyte);
 					socket.getOutputStream().flush();
-					
+					envioCertificado = true;
+				}
+				else
+				{
+					escritor.println(fromUser);
 				}
 				
-				//CONTINUAR
 				
-				escritor.println(fromUser);
 				if ((fromServer = lector.readLine()) != null) 
 				{
 					System.out.println("Servidor: " + fromServer);
+					if(envioCertificado)
+					{
+						fromServer = lector.readLine();
+						System.out.println("Servidor: " + fromServer);
+						if(fromServer != null && fromServer.equals(CERTIFICADO_RECIBIDO))
+						{
+							byte[] receivedData = new byte[1024];
+			                BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
+			                DataInputStream dis=new DataInputStream(socket.getInputStream());
+			                int in1;
+			                boolean recibioCertificado = false;
+			                while ((in1 = bis.read(receivedData)) != -1 && !recibioCertificado)
+			                {
+			                    recibioCertificado = true;
+			                    System.out.println("listo");
+			                	escritor.println(OK);
+			                }
+			                
+			                if(!recibioCertificado)
+			                {
+			                	System.out.println("error");
+			                	escritor.println(ERROR);
+			                }
+						}
+					}
 				}
 			}
 			escritor.close();
