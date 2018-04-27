@@ -1,5 +1,6 @@
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
@@ -7,38 +8,63 @@ import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.cert.*;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Random;
 
+import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
+import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.x500.X500Principal;
+import javax.xml.bind.DatatypeConverter;
 
 import org.bouncycastle.asn1.ASN1Object;
+import org.bouncycastle.asn1.DERInteger;
+import org.bouncycastle.asn1.DERObjectIdentifier;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
+import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
+import org.bouncycastle.asn1.x509.GeneralName;
+import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
+import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.asn1.x509.RSAPublicKeyStructure;
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
+import org.bouncycastle.asn1.x509.V3TBSCertificateGenerator;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.bcpg.SymmetricKeyEncSessionPacket;
 import org.bouncycastle.cert.*;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
+import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
 import org.bouncycastle.crypto.params.RSAKeyParameters;
 import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
 import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
+import org.bouncycastle.jce.PrincipalUtil;
 import org.bouncycastle.jce.provider.*;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
@@ -51,6 +77,7 @@ import org.bouncycastle.x509.X509V1CertificateGenerator;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 import org.bouncycastle.x509.extension.AuthorityKeyIdentifierStructure;
 import org.bouncycastle.jcajce.*;
+import org.bouncycastle.jcajce.provider.asymmetric.x509.KeyFactory;
 
 public class Cliente 
 {
@@ -58,14 +85,17 @@ public class Cliente
 	private final static String CERTIFICADO = "CERTCLNT";
 	private final static String CERTIFICADO_RECIBIDO = "CERTSRV";
 	private final static String OK = "ESTADO:OK";
-	private final static String ERROR = "ESTADO:ERROR";
 	private final static String ALGORITMO_ASIMETRICO="RSA";
 	private final static String ALGORITMO_SIMETRICO="AES";
+	private final static String ALGORITMO_HMAC="HMACSHA1";
 	private final static String PADDING="AES/ECB/PKCS5Padding";
 	private final static String POSICION ="41 24.2028, 2 10.4418"; 
 	private final static int PUERTO = 8080;  
-	private static KeyPair realKeyPair;
-	private static String simetricKey;
+	private static SecretKey lls;
+	private static PrivateKey privateKey;
+	private static PublicKey publicKey;
+	private static PublicKey publicKeySer;
+	private static byte[] llaveSimetrica;
 
 	public static void main(String[] args) 
 	{
@@ -91,6 +121,7 @@ public class Cliente
 				fromUser = stdIn.readLine();
 				if(fromUser != null && fromUser.equals(CERTIFICADO))
 				{
+					// GENERAR Y ENVIAR DEL CERTIFICADO AL SERVIDOR
 					escritor.println(CERTIFICADO);
 					java.security.cert.X509Certificate cert = certificado();
 					byte[] mybyte = cert.getEncoded();
@@ -113,20 +144,20 @@ public class Cliente
 						System.out.println("Servidor: " +fromServer);
 						if(fromServer != null && fromServer.equals(CERTIFICADO_RECIBIDO))
 						{
-							byte[] recievedData = new byte[1024];
-							BufferedInputStream bis = new BufferedInputStream(socket.getInputStream());
-							DataInputStream dis=new DataInputStream(socket.getInputStream());
-							int inl = bis.read(recievedData);
-							boolean recibioCertificado = false;
-							while ((inl) != -1 && !recibioCertificado)
+							try
 							{
-								recibioCertificado = true;
+								// RECIBIR Y VERIFICAR EL CERTIFICADO QUE ENVIA EL SERVIDOR
+								byte[] certificado = new byte[1024];
+								socket.getInputStream().read(certificado);
+								X509Certificate certSer = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificado));
+								publicKeySer = certSer.getPublicKey();
+								certSer.verify(publicKeySer);
 								escritor.println(OK);
 							}
-
-							if(!recibioCertificado)
+							catch (Exception e) 
 							{
-								escritor.println(ERROR);
+								e.printStackTrace();
+								escritor.println("ESTADO:ERROR");
 							}
 						}
 
@@ -136,21 +167,23 @@ public class Cliente
 						{
 							System.out.println("Servidor: " + fromServer);
 							String llaveSimetricaCifradaHexa = fromServer.split(":")[1];
-							byte[] encodedKey = hexToByte(llaveSimetricaCifradaHexa);
-							simetricKey = descifrar(encodedKey);
-							System.out.println("La llave simetrica es " + simetricKey);
-							String posicionCifrada = cifrar(POSICION).toString();
-							System.out.println("Pos cifrada " + posicionCifrada);
-							String posicionCifradaEnHexadecimal = textToHex(posicionCifrada);
-							escritor.println("ACT1:"+posicionCifradaEnHexadecimal);
-							String hash = hash().toString();
-							String hashCifrado = cifrarAsimetrico(hash).toString();
-							escritor.println("ACT2:"+hashCifrado);
+							
+							// DESCIFRAR LA LLAVE SIMETRICA
+							llaveSimetrica = descifrarLlaveSimetrica(llaveSimetricaCifradaHexa);
+							// ENVIAR LAS COORDENADAS CIFRADAS
+							enviarCoordenadasCifradas(escritor);
+							//ENVIAR EL CODIGO DE INTEGRIDAD
+							enviarCodigoDeIntegridad(escritor);
+							
 							fromServer = lector.readLine();
 							if(fromServer.equals(OK))
 							{
 								System.out.println("FIN DE LA COMUNICACION");
 								ejecutar = false;
+							}
+							else
+							{
+								System.out.println("HUBO UN ERROR");
 							}
 						}
 
@@ -159,7 +192,6 @@ public class Cliente
 			}
 			escritor.close();
 			lector.close();
-			// cierre el socket y la entrada estándar
 			socket.close();
 		}
 		catch(Exception e)
@@ -169,165 +201,82 @@ public class Cliente
 		}
 	}
 
-	private static byte[] cifrarAsimetrico(String hash) {
-		try 
-		{
-			Cipher cipher = Cipher.getInstance(ALGORITMO_ASIMETRICO, "BC");
-			byte [] clearText = hash.getBytes();
-			String s1 = new String (clearText);
-			cipher.init(Cipher.ENCRYPT_MODE, realKeyPair.getPublic());
-			byte [] cipheredText = cipher.doFinal(clearText);
-			System.out.println("clave cifrada: " + cipheredText);
-			return cipheredText;
-		}
-		catch (Exception e) 
-		{
-			System.out.println("Excepcion: " + e.getMessage());
-			return null;
-		}
+	private static void enviarCodigoDeIntegridad(PrintWriter escritor) throws Exception 
+	{
+		Cipher cipher2 = Cipher.getInstance(ALGORITMO_ASIMETRICO);
+		cipher2.init(Cipher.ENCRYPT_MODE, publicKeySer);
+		
+		Mac mac = Mac.getInstance(ALGORITMO_HMAC);
+		SecretKeySpec keySpec2 = new SecretKeySpec(llaveSimetrica, ALGORITMO_HMAC);
+		mac.init(keySpec2);
+		byte[] parcial = mac.doFinal(POSICION.getBytes());
+		String mandar= Hex.toHexString(cipher2.doFinal(parcial));
+		
+		escritor.println("ACT2:"+mandar);
 	}
 
-	private static byte[] hash() 
+	private static void enviarCoordenadasCifradas(PrintWriter escritor) throws Exception 
 	{
-		byte[] text = new byte[1024];
-		try 
-		{
-			BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-			System.out.println("Digite la información:");
-			String dato = stdIn.readLine();
-			text = dato.getBytes();
-			String s1 = new String(text);
-			System.out.println("dato original: " + s1);
-			byte [] digest = getKeyedDigest(text);
-			String s2 = new String(digest);
-			System.out.println("digest: "+ s2);
-			return digest;
-		}
-		catch (Exception e) 
-		{
-			System.out.println("Excepcion: " + e.getMessage());
-			return null;
-		}
+		Cipher cipher1 = Cipher.getInstance(ALGORITMO_SIMETRICO);
+		SecretKeySpec keySpec = new SecretKeySpec(llaveSimetrica, ALGORITMO_SIMETRICO);
+		cipher1.init(Cipher.ENCRYPT_MODE, keySpec);
+
+		String posicion="41 24.2028, 2 10.4418";
+
+		escritor.println("ACT1:"+Hex.toHexString(cipher1.doFinal((posicion).getBytes())));
+	}
+
+	private static byte[] descifrarLlaveSimetrica(String pLlaveCifrada) throws Exception
+	{
+		Cipher cipher = Cipher.getInstance(ALGORITMO_ASIMETRICO);
+		cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
+		return cipher.doFinal(Hex.decode(pLlaveCifrada));
 	}
 	
-	private static byte[] getKeyedDigest(byte[] buffer) 
-	{
-		try 
-		{
-			MessageDigest md5 = MessageDigest.getInstance("MD5");
-			md5.update(buffer);
-			return md5.digest();
-		} 
-		catch (Exception e) 
-		{
-			return null;
-		}
-	}
-
-	private static String textToHex(String s) {
-		
-		 char[] ch = s.toCharArray();
-
-	      StringBuilder builder = new StringBuilder();
-
-	      for (char c : ch) {
-	         int i = (int) c;
-	         builder.append(Integer.toHexString(i).toUpperCase());
-	      }
-
-	      return builder.toString();
-	}
-
-	private static byte[] hexToByte(String s) 
-	{
-		 int len = s.length();
-		    byte[] data = new byte[len / 2];
-		    for (int i = 0; i < len; i += 2) {
-		        data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
-		                             + Character.digit(s.charAt(i+1), 16));
-		    }
-		    return data;
-	}
-
-	public static byte[] cifrar(String texto) 
-	{
-		byte [] cipheredText;
-		try 
-		{
-			Cipher cipher = Cipher.getInstance(PADDING, "BC");
-			byte [] clearText = texto.getBytes();
-			String s1 = new String (clearText);
-			
-			//Si le restamos 111 al tamaño de la llave si encripta y envia
-			SecretKey desKey = new SecretKeySpec(simetricKey.getBytes(), 0, simetricKey.getBytes().length, ALGORITMO_SIMETRICO);
-			
-			System.out.println(Cipher.getMaxAllowedKeyLength(ALGORITMO_SIMETRICO));
-			System.out.println(desKey.getEncoded().length);
-			cipher.init(Cipher.ENCRYPT_MODE, desKey);
-			cipheredText = cipher.doFinal(clearText);
-			
-			String s2 = new String (cipheredText);
-			System.out.println("clave cifrada: " + s2);
-			return cipheredText;
-		}
-		catch (Exception e) 
-		{
-			System.out.println("Excepcion: " + e.getMessage());
-			return null;
-		}
-	}
-	
-	public static String descifrar(byte[] cipheredText) 
-	{
-		String textoDescifrado = null;
-		try 
-		{
-			
-			Cipher cipher = Cipher.getInstance(ALGORITMO_ASIMETRICO, "BC");
-			cipher.init(Cipher.DECRYPT_MODE, realKeyPair.getPrivate());
-			byte [] clearText = cipher.doFinal(cipheredText);
-			textoDescifrado = new String(clearText);
-		}
-		catch (Exception e) 
-		{
-			System.out.println("Excepcion: " + e.getMessage());
-		}
-		
-		return textoDescifrado;
-	}
-
 	private static X509Certificate certificado() 
 	{
 		X509Certificate certificado = null;
 		try
 		{
-			Security.addProvider(new BouncyCastleProvider());
+			Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
-			// yesterday
-			Date validityBeginDate = new Date(System.currentTimeMillis() - 24 * 60 * 60 * 1000);
-			// in 2 years
-			Date validityEndDate = new Date(System.currentTimeMillis() + 2 * 365 * 24 * 60 * 60 * 1000);
+			KeyPairGenerator keygen= KeyPairGenerator.getInstance("RSA");
 
-			// GENERATE THE PUBLIC/PRIVATE RSA KEY PAIR
-			KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("RSA", "BC");
-			keyPairGenerator.initialize(1024, new SecureRandom());
+			keygen.initialize(1024);
 
-			java.security.KeyPair keyPair = keyPairGenerator.generateKeyPair();
-			realKeyPair = keyPair;
+			KeyPair pair= keygen.generateKeyPair();
+			setPrivateKey(pair.getPrivate());
+			setPublicKey(pair.getPublic());
 
-			// GENERATE THE X509 CERTIFICATE
-			X509V3CertificateGenerator certGen = new X509V3CertificateGenerator();
-			X500Principal dnName = new X500Principal("CN=John Doe");
+			BigInteger suma= BigInteger.valueOf(0);
+			for (int i = 5; i < 5000; i++)
+			{
+				if(i%5==0)
+				{
+					suma=suma.add(BigInteger.valueOf(i));
+				}
+			}
 
-			certGen.setSerialNumber(BigInteger.valueOf(System.currentTimeMillis()));
-			certGen.setSubjectDN(dnName);
-			certGen.setIssuerDN(dnName); // use the same
-			certGen.setNotBefore(validityBeginDate);
-			certGen.setNotAfter(validityEndDate);
-			certGen.setPublicKey(keyPair.getPublic());
-			certGen.setSignatureAlgorithm("SHA256WithRSAEncryption");
+			//numero serial del certificado
+			BigInteger serialNumber=suma;
 
-			certificado = certGen.generate(keyPair.getPrivate(), "BC");
+			X509V3CertificateGenerator certifGen= new X509V3CertificateGenerator();
+			X500Principal dnName= new X500Principal("CN=Test Certificate");
+			certifGen.setSerialNumber(serialNumber);
+			certifGen.setIssuerDN(dnName);
+			certifGen.setNotBefore(new Date(System.currentTimeMillis()-20000));
+			certifGen.setNotAfter(new Date(System.currentTimeMillis()+20000));
+			certifGen.setSubjectDN(dnName);
+			certifGen.setPublicKey(pair.getPublic());
+			certifGen.setSignatureAlgorithm("SHA256withRSA");
+			certifGen.addExtension(X509Extensions.BasicConstraints, true, new BasicConstraints(false));
+			certifGen.addExtension(X509Extensions.KeyUsage, true, new KeyUsage(KeyUsage.digitalSignature|KeyUsage.keyEncipherment) );
+			certifGen.addExtension(X509Extensions.ExtendedKeyUsage, true, new ExtendedKeyUsage(KeyPurposeId.id_kp_serverAuth));
+			certifGen.addExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(new GeneralName(GeneralName.rfc822Name,"test@test.test")));
+			X509Certificate cert= certifGen.generateX509Certificate(pair.getPrivate(), "BC");
+
+			certificado=cert;
+			
 		}
 		catch (Exception e)
 		{
@@ -335,5 +284,21 @@ public class Cliente
 		}
 		return certificado;
 	}
+
+	public static void setPrivateKey(PrivateKey pPrivada) 
+	{
+		privateKey = pPrivada;
+	}
+
+	public static void setPublicKey(PublicKey pPublica) 
+	{
+		publicKey = pPublica;
+	}
+	
+	public static PrivateKey getPrivateKey() 
+	{
+		return privateKey;
+	}
+	
 
 }
