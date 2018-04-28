@@ -9,10 +9,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class Servidor {
-	private static final int TIME_OUT = 10000;
+	private static final int TIME_OUT = 100000;
 	public static final int N_THREADS = 2;
 	private static ServerSocket elSocket;
 	private static Servidor elServidor;
+	public static int transaccionesPerdidas;
 
 	public Servidor() {
 	}
@@ -20,6 +21,7 @@ public class Servidor {
 	private ExecutorService executor = Executors.newFixedThreadPool(N_THREADS);
 
 	public static void main(String[] args) throws IOException {
+		transaccionesPerdidas=0;
 		elServidor = new Servidor();
 		elServidor.runServidor();
 	}
@@ -38,11 +40,24 @@ public class Servidor {
 				sThread = elSocket.accept();
 				sThread.setSoTimeout(TIME_OUT);
 				System.out.println("Thread " + num + " recibe a un cliente.");
-				executor.submit(new Worker(num, sThread));
+				executor.submit(new Worker(num, sThread, this));
 				num++;
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public synchronized void aumentarPerdidas()
+	{
+		transaccionesPerdidas++;
+		System.out.println("Número de transacciones perdidas: " + transaccionesPerdidas);
+		System.out.println();
+	}
+
+	public void informarTransaccionesPerdidas() 
+	{
+		System.out.println("Número de transacciones perdidas: " + transaccionesPerdidas);
+		System.out.println();
 	}
 }

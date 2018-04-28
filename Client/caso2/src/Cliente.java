@@ -53,10 +53,6 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
 import org.bouncycastle.asn1.x509.V3TBSCertificateGenerator;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
-import org.bouncycastle.bcpg.SymmetricKeyEncSessionPacket;
-import org.bouncycastle.cert.*;
-import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
-import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
 import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
@@ -66,11 +62,6 @@ import org.bouncycastle.crypto.util.PrivateKeyFactory;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.bouncycastle.jce.PrincipalUtil;
 import org.bouncycastle.jce.provider.*;
-import org.bouncycastle.operator.ContentSigner;
-import org.bouncycastle.operator.DefaultDigestAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.DefaultSignatureAlgorithmIdentifierFinder;
-import org.bouncycastle.operator.bc.BcRSAContentSignerBuilder;
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.Hex;
 import org.bouncycastle.x509.X509V1CertificateGenerator;
@@ -96,7 +87,8 @@ public class Cliente
 	private static PublicKey publicKey;
 	private static PublicKey publicKeySer;
 	private static byte[] llaveSimetrica;
-
+	private static Long startTime2;
+	
 	public static void main(String[] args) 
 	{
 		Socket socket = null;
@@ -161,6 +153,7 @@ public class Cliente
 							}
 						}
 
+						Long startTime = System.currentTimeMillis();
 						fromServer = lector.readLine();
 
 						if(fromServer != null)
@@ -171,13 +164,17 @@ public class Cliente
 							// DESCIFRAR LA LLAVE SIMETRICA
 							llaveSimetrica = descifrarLlaveSimetrica(llaveSimetricaCifradaHexa);
 							// ENVIAR LAS COORDENADAS CIFRADAS
-							enviarCoordenadasCifradas(escritor);
+							enviarCoordenadasCifradas(escritor, startTime);
+							
 							//ENVIAR EL CODIGO DE INTEGRIDAD
 							enviarCodigoDeIntegridad(escritor);
 							
 							fromServer = lector.readLine();
+							Long endtTime2 = System.currentTimeMillis();
+							Long totalTimeActualizacion = endtTime2-startTime2;
+							System.out.println("Tiempo total de respuesta a una actualización: "+ totalTimeActualizacion+" milisegundos");
 							if(fromServer.equals(OK))
-							{
+							{								
 								System.out.println("FIN DE LA COMUNICACION");
 								ejecutar = false;
 							}
@@ -215,15 +212,19 @@ public class Cliente
 		escritor.println("ACT2:"+mandar);
 	}
 
-	private static void enviarCoordenadasCifradas(PrintWriter escritor) throws Exception 
+	private static void enviarCoordenadasCifradas(PrintWriter escritor, Long startTime) throws Exception 
 	{
 		Cipher cipher1 = Cipher.getInstance(ALGORITMO_SIMETRICO);
 		SecretKeySpec keySpec = new SecretKeySpec(llaveSimetrica, ALGORITMO_SIMETRICO);
+		Long endTime = System.currentTimeMillis();
+		Long totalTimeLlaveSimetrica = endTime-startTime;
+		System.out.println("Tiempo para obtener la llave simetrica: "+totalTimeLlaveSimetrica+" milisegundos");
 		cipher1.init(Cipher.ENCRYPT_MODE, keySpec);
 
 		String posicion="41 24.2028, 2 10.4418";
-
-		escritor.println("ACT1:"+Hex.toHexString(cipher1.doFinal((posicion).getBytes())));
+		String ACT1 = "ACT1:"+Hex.toHexString(cipher1.doFinal((posicion).getBytes()));
+		startTime2 = System.currentTimeMillis();
+		escritor.println(ACT1);
 	}
 
 	private static byte[] descifrarLlaveSimetrica(String pLlaveCifrada) throws Exception

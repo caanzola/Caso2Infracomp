@@ -64,8 +64,10 @@ public class Worker implements Runnable {
     private KeyPair keyPair;
     
     private X509Certificate certificadoCliente;
+    private Servidor servidor;
 
-    public Worker(int pId, Socket pSocket) {
+    public Worker(int pId, Socket pSocket, Servidor server) {
+    	servidor = server;
         id = pId;
         ss = pSocket;
         Security.addProvider(new BouncyCastleProvider());
@@ -97,6 +99,7 @@ public class Worker implements Runnable {
 
             if (!linea.equals("HOLA")) {
                 write(writer, "Error en el formato. Cerrando conexion");
+                servidor.aumentarPerdidas();
                 throw new FontFormatException(linea);
             }
             write(writer, "INICIO");
@@ -107,6 +110,7 @@ public class Worker implements Runnable {
             if ((!linea.contains(":"))
                     || (!linea.split(":")[0].equals("ALGORITMOS"))) {
                 write(writer, "Error en el formato. Se espera que la cadena empieze con la palabra ALGORITMOS. Cerrando conexion");
+                servidor.aumentarPerdidas();
                 throw new FontFormatException(linea);
             }
 
@@ -116,12 +120,14 @@ public class Worker implements Runnable {
                     && (!algoritmos[1].equals(DES)) && (!algoritmos[1].equals(RC4))) {
                 write(writer, "ERROR: Algoritmo no soportado o no reconocido: "
                         + algoritmos[1] + ". Cerrando conexion");
+                servidor.aumentarPerdidas();
                 throw new NoSuchAlgorithmException();
             }
 
             if (!algoritmos[2].equals(RSA)) {
                 write(writer, "ERROR: Algoritmo no soportado o no reconocido: "
                         + algoritmos[2] + ". Cerrando conexion");
+                servidor.aumentarPerdidas();
                 throw new NoSuchAlgorithmException();
             }
 
@@ -130,6 +136,7 @@ public class Worker implements Runnable {
                     && (!algoritmos[3].equals(HMACSHA256))) {
                 write(writer, "ERROR: Algoritmo no soportado o no reconocido: "
                         + algoritmos[3] + " . Cerrando conexion");
+                servidor.aumentarPerdidas();
                 throw new NoSuchAlgorithmException();
             }
 
@@ -141,6 +148,7 @@ public class Worker implements Runnable {
             linea = read(reader);
             if ((!linea.equals(CERTCLNT))) {
                 write(writer, "Error en el formato. Se espera que la cadena fuera CERTCLNT. Cerrando conexion");
+                servidor.aumentarPerdidas();
                 throw new FontFormatException(linea);
             }
                         
@@ -155,6 +163,7 @@ public class Worker implements Runnable {
             } catch(CertificateException ce){
             	write(writer, ESTADO + SEPARADOR + ERROR);
             	ce.printStackTrace();
+            	servidor.aumentarPerdidas();
             	throw new FontFormatException(
                   "Error en el certificado recibido, no se puede decodificar");
             }
@@ -178,6 +187,7 @@ public class Worker implements Runnable {
           				ss.getOutputStream().write(certAsBytes);
           				ss.getOutputStream().flush();
           			} catch(IOException exception){
+          				servidor.aumentarPerdidas();
           				System.out.println("Hubo un error enviado bytes de certificado al cliente");
           			}
           			
@@ -188,6 +198,7 @@ public class Worker implements Runnable {
             // verificamos que el cliente comprobo nuestro certificado
             linea = read(reader);
             if (!linea.split(SEPARADOR)[1].equals("OK")) {
+            	servidor.aumentarPerdidas();
                 System.out.println("Error de confirmación, cerrando conexion: " + linea);
                 return;
             }
@@ -238,6 +249,7 @@ public class Worker implements Runnable {
                 write(writer, rta);
             }
             System.out.println("Thread " + id + "Terminando\n");
+            servidor.informarTransaccionesPerdidas();
 
         } catch (NullPointerException e) {
 
