@@ -82,6 +82,7 @@ public class Cliente
 	private final static String PADDING="AES/ECB/PKCS5Padding";
 	private final static String POSICION ="41 24.2028, 2 10.4418"; 
 	private final static int PUERTO = 8080;  
+	private static String IP;  
 	private static SecretKey lls;
 	private static PrivateKey privateKey;
 	private static PublicKey publicKey;
@@ -97,12 +98,15 @@ public class Cliente
 		try 
 		{
 
-			socket = new Socket(InetAddress.getLocalHost().getHostAddress(), PUERTO);
+			BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
+			
+			System.out.println("Escriba la ip del servidor: ");
+			IP = stdIn.readLine();
+			socket = new Socket(IP, PUERTO);
 			escritor = new PrintWriter(socket.getOutputStream(), true);
 
 			lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
-
+			
 			String fromServer;
 			String fromUser;
 			boolean ejecutar = true;
