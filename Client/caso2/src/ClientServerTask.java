@@ -5,15 +5,24 @@ import uniandes.gload.core.Task;
 
 public class ClientServerTask extends Task
 {
+	private Generator gen;
+	
+	public ClientServerTask (Generator generator)
+	{
+		gen = generator;
+	}
 	
 	@Override
 	public void execute()
 	{
-		try {
+		try 
+		{
 			Cliente cliente = new Cliente();
 			success();
-		} catch (Exception e) {
-
+		} 
+		catch (Exception e) 
+		{
+			gen.aumentarPerdidas();
 			fail();
 		} 
 	}
@@ -21,13 +30,13 @@ public class ClientServerTask extends Task
 	@Override
 	public void fail()
 	{
-		System.out.println(Task.MENSAJE_FAIL);
+		System.err.println(Task.MENSAJE_FAIL);
 	}
 	
 	@Override
 	public void success()
 	{
-		System.out.println(Task.OK_MESSAGE);
+		System.err.println(Task.OK_MESSAGE);
 	}
 	
 }

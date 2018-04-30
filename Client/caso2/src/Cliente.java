@@ -1,207 +1,121 @@
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
-import java.io.DataInputStream;
-import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidKeyException;
+import java.net.UnknownHostException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
-import java.security.Provider;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.Security;
-import java.security.cert.*;
-import java.security.spec.RSAPublicKeySpec;
-import java.util.Arrays;
-import java.util.Calendar;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Date;
-import java.util.Random;
 
-import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import javax.security.auth.x500.X500Principal;
-import javax.xml.bind.DatatypeConverter;
 
-import org.bouncycastle.asn1.ASN1Object;
-import org.bouncycastle.asn1.DERInteger;
-import org.bouncycastle.asn1.DERObjectIdentifier;
-import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.ExtendedKeyUsage;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.KeyPurposeId;
 import org.bouncycastle.asn1.x509.KeyUsage;
-import org.bouncycastle.asn1.x509.RSAPublicKeyStructure;
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo;
-import org.bouncycastle.asn1.x509.V3TBSCertificateGenerator;
 import org.bouncycastle.asn1.x509.X509Extensions;
-import org.bouncycastle.asn1.x509.X509Name;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
-import org.bouncycastle.crypto.params.RSAKeyGenerationParameters;
-import org.bouncycastle.crypto.params.RSAKeyParameters;
-import org.bouncycastle.crypto.params.RSAPrivateCrtKeyParameters;
-import org.bouncycastle.crypto.util.PrivateKeyFactory;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
-import org.bouncycastle.jce.PrincipalUtil;
-import org.bouncycastle.jce.provider.*;
-import org.bouncycastle.util.encoders.Base64;
 import org.bouncycastle.util.encoders.Hex;
-import org.bouncycastle.x509.X509V1CertificateGenerator;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
-import org.bouncycastle.x509.extension.AuthorityKeyIdentifierStructure;
-import org.bouncycastle.jcajce.*;
-import org.bouncycastle.jcajce.provider.asymmetric.x509.KeyFactory;
 
 public class Cliente 
 {
-
-	private final static String CERTIFICADO = "CERTCLNT";
-	private final static String CERTIFICADO_RECIBIDO = "CERTSRV";
-	private final static String OK = "ESTADO:OK";
 	private final static String ALGORITMO_ASIMETRICO="RSA";
 	private final static String ALGORITMO_SIMETRICO="AES";
 	private final static String ALGORITMO_HMAC="HMACSHA1";
 	private final static String PADDING="AES/ECB/PKCS5Padding";
 	private final static String POSICION ="41 24.2028, 2 10.4418"; 
-	private final static int PUERTO = 8080;  
-	private static String IP;  
 	private static SecretKey lls;
 	private static PrivateKey privateKey;
 	private static PublicKey publicKey;
 	private static PublicKey publicKeySer;
 	private static byte[] llaveSimetrica;
 	private static Long startTime2;
-	
-	public Cliente() 
+
+	public Cliente() throws Exception 
 	{
-		Socket socket = null;
-		PrintWriter escritor = null;
-		BufferedReader lector = null;
-		try 
-		{
-
-			BufferedReader stdIn = new BufferedReader(new InputStreamReader(System.in));
 			
-			System.out.println("Escriba la ip del servidor: ");
-			IP = stdIn.readLine();
-			socket = new Socket(IP, PUERTO);
-			escritor = new PrintWriter(socket.getOutputStream(), true);
+			Socket socket = new Socket(InetAddress.getLocalHost().getHostName(), 8080);
+			PrintWriter escritor = new PrintWriter(socket.getOutputStream(), true);
+			BufferedReader lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-			lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+			escritor.println("HOLA");
+			System.out.println(lector.readLine());
 			
-			String fromServer;
-			String fromUser;
-			boolean ejecutar = true;
-			boolean envioCertificado = false;
-			while (ejecutar) 
+			escritor.println("ALGORITMOS:AES:RSA:HMACSHA1");
+			System.out.println(lector.readLine());
+			
+			escritor.println("CERTCLNT");
+			java.security.cert.X509Certificate cert = certificado();
+			byte[] mybyte = cert.getEncoded();
+			socket.getOutputStream().write(mybyte);
+			socket.getOutputStream().flush();
+			System.out.println(lector.readLine());
+			System.out.println("Servidor: " +lector.readLine());
+		
+			try
 			{
-				System.out.print("Escriba el mensaje para enviar:");
-				fromUser = stdIn.readLine();
-				if(fromUser != null && fromUser.equals(CERTIFICADO))
-				{
-					// GENERAR Y ENVIAR DEL CERTIFICADO AL SERVIDOR
-					escritor.println(CERTIFICADO);
-					java.security.cert.X509Certificate cert = certificado();
-					byte[] mybyte = cert.getEncoded();
-					socket.getOutputStream().write(mybyte);
-					socket.getOutputStream().flush();
-					envioCertificado = true;
-				}
-				else
-				{
-					escritor.println(fromUser);
-				}
-
-
-				if ((fromServer = lector.readLine()) != null) 
-				{
-					System.out.println("Servidor: " + fromServer);
-					if(envioCertificado)
-					{
-						fromServer = lector.readLine();
-						System.out.println("Servidor: " +fromServer);
-						if(fromServer != null && fromServer.equals(CERTIFICADO_RECIBIDO))
-						{
-							try
-							{
-								// RECIBIR Y VERIFICAR EL CERTIFICADO QUE ENVIA EL SERVIDOR
-								byte[] certificado = new byte[1024];
-								socket.getInputStream().read(certificado);
-								X509Certificate certSer = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificado));
-								publicKeySer = certSer.getPublicKey();
-								certSer.verify(publicKeySer);
-								escritor.println(OK);
-							}
-							catch (Exception e) 
-							{
-								e.printStackTrace();
-								escritor.println("ESTADO:ERROR");
-							}
-						}
-
-						Long startTime = System.currentTimeMillis();
-						fromServer = lector.readLine();
-
-						if(fromServer != null)
-						{
-							System.out.println("Servidor: " + fromServer);
-							String llaveSimetricaCifradaHexa = fromServer.split(":")[1];
-							
-							// DESCIFRAR LA LLAVE SIMETRICA
-							llaveSimetrica = descifrarLlaveSimetrica(llaveSimetricaCifradaHexa);
-							// ENVIAR LAS COORDENADAS CIFRADAS
-							enviarCoordenadasCifradas(escritor, startTime);
-							
-							//ENVIAR EL CODIGO DE INTEGRIDAD
-							enviarCodigoDeIntegridad(escritor);
-							
-							fromServer = lector.readLine();
-							Long endtTime2 = System.currentTimeMillis();
-							Long totalTimeActualizacion = endtTime2-startTime2;
-							System.out.println("Tiempo total de respuesta a una actualización: "+ totalTimeActualizacion+" milisegundos");
-							if(fromServer.equals(OK))
-							{								
-								System.out.println("FIN DE LA COMUNICACION");
-								ejecutar = false;
-							}
-							else
-							{
-								System.out.println("HUBO UN ERROR");
-							}
-						}
-
-					}
-				}
+				// RECIBIR Y VERIFICAR EL CERTIFICADO QUE ENVIA EL SERVIDOR
+				byte[] certificado = new byte[1024];
+				socket.getInputStream().read(certificado);
+				X509Certificate certSer = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(new ByteArrayInputStream(certificado));
+				publicKeySer = certSer.getPublicKey();
+				certSer.verify(publicKeySer);
+				escritor.println("ESTADO:OK");
 			}
+			catch (Exception e) 
+			{
+				e.printStackTrace();
+				escritor.println("ESTADO:ERROR");
+			}
+			
+			Long startTime = System.currentTimeMillis();
+			String fromServer = lector.readLine();
+;			System.out.println("Servidor: " + fromServer);
+			String llaveSimetricaCifradaHexa = fromServer.split(":")[1];
+			
+			// DESCIFRAR LA LLAVE SIMETRICA
+			llaveSimetrica = descifrarLlaveSimetrica(llaveSimetricaCifradaHexa);
+			// ENVIAR LAS COORDENADAS CIFRADAS
+			enviarCoordenadasCifradas(escritor, startTime);
+			
+			//ENVIAR EL CODIGO DE INTEGRIDAD
+			enviarCodigoDeIntegridad(escritor);
+			
+			fromServer = lector.readLine();
+			Long endtTime2 = System.currentTimeMillis();
+			Long totalTimeActualizacion = endtTime2-startTime2;
+			System.out.println("Tiempo total de respuesta a una actualización: "+ totalTimeActualizacion+" milisegundos");
+			if(fromServer.equals("ESTADO:OK"))
+			{								
+				System.out.println("FIN DE LA COMUNICACION");
+			}
+			else
+			{
+				System.out.println("HUBO UN ERROR");
+			}
+			
+
 			escritor.close();
 			lector.close();
 			socket.close();
-		}
-		catch(Exception e)
-		{
-			System.out.println("Error " + e.getMessage());
-			System.exit(1);
-		}
 	}
-
+	
 	private static void enviarCodigoDeIntegridad(PrintWriter escritor) throws Exception 
 	{
 		Cipher cipher2 = Cipher.getInstance(ALGORITMO_ASIMETRICO);
@@ -237,9 +151,8 @@ public class Cliente
 		cipher.init(Cipher.DECRYPT_MODE, getPrivateKey());
 		return cipher.doFinal(Hex.decode(pLlaveCifrada));
 	}
-	
-	private static X509Certificate certificado() 
-	{
+
+	private X509Certificate certificado() {
 		X509Certificate certificado = null;
 		try
 		{
@@ -289,6 +202,7 @@ public class Cliente
 		}
 		return certificado;
 	}
+	
 
 	public static void setPrivateKey(PrivateKey pPrivada) 
 	{
@@ -304,6 +218,5 @@ public class Cliente
 	{
 		return privateKey;
 	}
-	
 
 }
