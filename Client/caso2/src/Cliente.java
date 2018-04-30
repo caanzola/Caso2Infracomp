@@ -90,7 +90,7 @@ public class Cliente
 	private static byte[] llaveSimetrica;
 	private static Long startTime2;
 	
-	public static void main(String[] args) 
+	public Cliente() 
 	{
 		Socket socket = null;
 		PrintWriter escritor = null;
