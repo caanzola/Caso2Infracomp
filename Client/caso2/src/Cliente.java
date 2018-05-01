@@ -1,4 +1,7 @@
 import java.io.BufferedReader;
+import  org.apache.poi.hssf.usermodel.HSSFSheet;
+import  org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import  org.apache.poi.hssf.usermodel.HSSFRow;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -46,11 +49,25 @@ public class Cliente
 	private static PublicKey publicKeySer;
 	private static byte[] llaveSimetrica;
 	private static Long startTime2;
+	private static Long totalTimeActualizacion;
+	private static Long totalTimeLlaveSimetrica;
+	
+	public Long darTActualizacion(){
+		return totalTimeActualizacion;
+	}
+	
+	public Long darTLlaveS(){
+		return totalTimeLlaveSimetrica;
+	}
 
 	public Cliente() throws Exception 
 	{
 			
+		
+
+        
 			Socket socket = new Socket(InetAddress.getLocalHost().getHostName(), 8080);
+//		    Socket socket = new Socket("157.253.239.29", 8080);
 			PrintWriter escritor = new PrintWriter(socket.getOutputStream(), true);
 			BufferedReader lector = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
@@ -99,7 +116,7 @@ public class Cliente
 			
 			fromServer = lector.readLine();
 			Long endtTime2 = System.currentTimeMillis();
-			Long totalTimeActualizacion = endtTime2-startTime2;
+			totalTimeActualizacion = endtTime2-startTime2;
 			System.out.println("Tiempo total de respuesta a una actualización: "+ totalTimeActualizacion+" milisegundos");
 			if(fromServer.equals("ESTADO:OK"))
 			{								
@@ -135,7 +152,7 @@ public class Cliente
 		Cipher cipher1 = Cipher.getInstance(ALGORITMO_SIMETRICO);
 		SecretKeySpec keySpec = new SecretKeySpec(llaveSimetrica, ALGORITMO_SIMETRICO);
 		Long endTime = System.currentTimeMillis();
-		Long totalTimeLlaveSimetrica = endTime-startTime;
+		totalTimeLlaveSimetrica = endTime-startTime;
 		System.out.println("Tiempo para obtener la llave simetrica: "+totalTimeLlaveSimetrica+" milisegundos");
 		cipher1.init(Cipher.ENCRYPT_MODE, keySpec);
 
